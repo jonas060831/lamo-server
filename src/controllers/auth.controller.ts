@@ -35,6 +35,24 @@ const signUp = async (req: Request, res: Response) => {
   }
 }
 
+const myProfile = async (req: Request, res: Response) => {
+  try {
+   
+    const authedUser = req.user
+
+    if(!authedUser) return res.status(403).json({ error: 'Unauthorized' })
+
+    const user = await User.findById(authedUser._id)
+
+    res.status(200).json({ user })
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Server Error'
+    res.status(500).json({ error: errorMessage })
+  }
+}
+
 export default {
-  signUp
+  signUp,
+  myProfile
 }
