@@ -35,6 +35,33 @@ const signUp = async (req: Request, res: Response) => {
   }
 }
 
+const signIn = async (req: Request, res: Response) => {
+  try {
+      const { username, password } = req.body
+      const user = await User.findOne({ username })
+
+      if(!user) return res.status(401).json({ error: 'Invalid credentials' })
+
+      //if there is an existing user check pw against hashed
+      const isPasswordCorrect = bcrypt.compareSync(password, user.hashedPassword)
+
+
+      if(!isPasswordCorrect) return res.status(401).json({ error: 'Invalid credentials' })
+
+      const { username: email, _id } = user
+
+      const payload = { username: email, _id }
+
+      const token = jwt.sign({ payload }, process.env.JWT_SECRET!)
+
+      res.status(200).json({ token })
+
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Server Error'
+    res.status(500).json({ error: errorMessage })
+  }
+}
+
 const myProfile = async (req: Request, res: Response) => {
   try {
    
@@ -54,5 +81,6 @@ const myProfile = async (req: Request, res: Response) => {
 
 export default {
   signUp,
+  signIn,
   myProfile
 }

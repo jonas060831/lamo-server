@@ -7,6 +7,7 @@ import verifyToken from '../middlewares/verify-token'
 const router = Router()
 
 router.post('/sign-up', validate(userNamePasswordSchema) , controllers.auth.signUp)
+router.post('/sign-in', controllers.auth.signIn)
 router.get('/my-profile', verifyToken, controllers.auth.myProfile)
 
 
