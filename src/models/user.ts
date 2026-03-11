@@ -1,16 +1,21 @@
 import { Schema, model } from 'mongoose'
 
-const userSchema = new Schema({
+
+interface IUser {
+  username: string
+  hashedPassword: string
+}
+const userSchema = new Schema<IUser>({
   username: { type: String, required: true },
   hashedPassword: { type: String, required: true }
 })
 
 userSchema.set('toJSON', {
-  transform: (_, returnedObject) => {
+  transform: (_, returnedObject: Partial<IUser>) => {
     delete returnedObject.hashedPassword
   }
 })
 
 const User = model('User', userSchema)
 
-module.exports = User
+export default User
