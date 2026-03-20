@@ -16,7 +16,12 @@ server.use(cors())
 server.use(morgan('dev'))
 
 
-server.use('/api', routes)
+
+if(process.env.NODE_ENV === 'development') {
+    server.use('/api', routes)
+}
+
+server.use(routes)
 
 //connect to db and run server
 const startServer = async() => {
