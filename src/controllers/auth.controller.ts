@@ -52,7 +52,8 @@ const signIn = async (req: Request, res: Response) => {
 
       const payload = { username: email, _id }
 
-      const token = jwt.sign({ payload }, process.env.JWT_SECRET!)
+
+      const token = jwt.sign({ payload }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' })
 
       res.status(200).json({ token })
 
