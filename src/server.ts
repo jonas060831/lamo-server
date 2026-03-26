@@ -23,8 +23,8 @@ server.use(cors({
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
 }))
-//handle preflight
-server.options("/*", cors())
+
+
 
 
 if(process.env.NODE_ENV === 'development') {
