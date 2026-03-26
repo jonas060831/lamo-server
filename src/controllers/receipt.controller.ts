@@ -8,6 +8,7 @@
 
 import { Request, Response } from 'express'
 import Receipt from '../models/receipt'
+import costcoReceiptParser from '../utils/parser/costcoReceiptParse'
 
 const index = async (req: Request, res: Response) => {
 
@@ -35,9 +36,29 @@ const addNew = async (req: Request, res: Response) => {
 
         req.body.owner = req.user._id
 
-        const receipt = await Receipt.create(req.body)
+        const extractedText = req.body.text
 
-        res.status(201).send(receipt)
+        const lines = extractedText
+        .split("\n")
+        .map((line:string) => line.trim())
+        .filter(Boolean);
+
+        const company = lines[0].toLowerCase();
+
+        let details:any
+        if(company === 'costco') {
+            details = costcoReceiptParser(extractedText, req.body.owner)
+        }
+        
+        console.log(details)
+
+        //TODO: base on details.company make a get request to /api/<company_name>/:storeId
+        //if the reponse is 200 proceed in adding the receipt to the database
+        //if its not make a post request to /api/<company_name>/:storeId to save item details
+        
+        // const receipt = await Receipt.create(details)
+
+        res.status(201).send("ok")
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Server Error'
