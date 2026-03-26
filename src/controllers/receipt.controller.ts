@@ -42,8 +42,6 @@ const addNew = async (req: Request, res: Response) => {
 
         const preview = req.body.preview
         
-        console.log('owner id:', req.body.owner)
-
         const lines = extractedText
         .split("\n")
         .map((line:string) => line.trim())
