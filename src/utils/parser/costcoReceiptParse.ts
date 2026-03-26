@@ -52,10 +52,11 @@ const VOID_ADJ_RE = /^\d[\d\s]+\/\s*\d+(\s+[\d,.]+[-]\w?)?$/;
 const MEMBER_LINE_RE = /^\d{1,3}\s+Member\s+\d+/i;
 
 /**
- * An item number: 5–12 consecutive digits.
+ * An item number: 3–12 consecutive digits.
  * We allow an optional leading tax-code letter "E " before it.
+ * Costco item numbers can be as short as 3 digits (e.g. "206").
  */
-const ITEM_NUM_RE = /^(?:[A-Z]\s+)?(\d{5,12})(?:\s|$)/;
+const ITEM_NUM_RE = /^(?:[A-Z]\s+)?(\d{3,12})(?:\s|$)/;
 
 /**
  * A price token: digits with optional comma-thousands and exactly 2 decimal places.
@@ -184,7 +185,7 @@ const costcoReceiptParser = (rawText: string, ownerId: string): ParsedReceipt =>
     if (VOID_ADJ_RE.test(line)) continue;
 
     if (inVoidBlock) {
-      // Resume once we see a fresh item number
+      // Resume once we see a fresh item number (3+ digits)
       if (ITEM_NUM_RE.test(line)) inVoidBlock = false;
       else continue;
     }
@@ -262,10 +263,8 @@ const costcoReceiptParser = (rawText: string, ownerId: string): ParsedReceipt =>
   }
 
   // ── 5. Financial summary ──────────────────────────────────────────────────
-  // SUBTOTAL — "SUBTOTAL 443.61" or mangled "SUET | 443.61"
-  const subtotalMatch =
-    cleanText.match(/\bSUBT(?:OTAL)?\b[^0-9]*([\d,.]+)/i) ??
-    cleanText.match(/\bSUET\b[^0-9]*([\d,.]+)/i);
+  // Subtotal is computed from parsed items — not read from the receipt
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   // TAX — "TAX  8.51" (single tax line, not "TOTAL TAX")
   const taxMatch = cleanText.match(/^TAX\s+([\d,.]+)/im);
@@ -276,7 +275,6 @@ const costcoReceiptParser = (rawText: string, ownerId: string): ParsedReceipt =>
     cleanText.match(/\*+\s*TOTAL[^0-9]*([\d,.]+)/i) ??
     cleanText.match(/AMOUNT:\s*\$?([\d,.]+)/i);
 
-  const subtotal = subtotalMatch ? parseMoney(subtotalMatch[1]) : undefined;
   const tax = taxMatch ? parseMoney(taxMatch[1]) : undefined;
   const total = totalMatch ? parseMoney(totalMatch[1]) : undefined;
 
@@ -287,13 +285,8 @@ const costcoReceiptParser = (rawText: string, ownerId: string): ParsedReceipt =>
     ? dateMatches[dateMatches.length - 1][1]
     : undefined;
 
-  // ── 7. Total items sold ───────────────────────────────────────────────────
-  const totalItemsMatch =
-    cleanText.match(/TOTAL\s+NUMBER\s+(?:OF\s+)?[A-Z\s]*SOLD[:\s=-]*(\d+)/i) ??
-    cleanText.match(/Items?\s+Sold[:\s]*(\d+)/i);
-  const totalItemsSold = totalItemsMatch
-    ? parseInt(totalItemsMatch[1], 10)
-    : undefined;
+  // ── 7. Total items sold — computed from parsed items ─────────────────────
+  const totalItemsSold = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return {
     owner: ownerId,
