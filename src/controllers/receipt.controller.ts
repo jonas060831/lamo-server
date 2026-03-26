@@ -38,6 +38,8 @@ const addNew = async (req: Request, res: Response) => {
 
         const extractedText = req.body.text
 
+        const preview = req.body.preview
+
         const lines = extractedText
         .split("\n")
         .map((line:string) => line.trim())

@@ -12,9 +12,19 @@ const server = express();
 const PORT = process.env.PORT || 9000;
 
 server.use(express.json());
-server.use(cors())
 server.use(morgan('dev'))
 
+server.use(cors({
+    origin: [
+        process.env.FRONTEND_URL_DEV!,
+        process.env.FRONTEND_URL_MASTER!
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
+}))
+//handle preflight
+server.options("*", cors())
 
 
 if(process.env.NODE_ENV === 'development') {
