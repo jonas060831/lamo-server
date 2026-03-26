@@ -11,7 +11,8 @@ import routes from './routes'
 const server = express();
 const PORT = process.env.PORT || 9000;
 
-server.use(express.json());
+server.use(express.json({ limit: "50mb" }));
+server.use(express.urlencoded({ extended: true }))
 server.use(morgan('dev'))
 
 server.use(cors({

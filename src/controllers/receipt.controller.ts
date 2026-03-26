@@ -33,12 +33,16 @@ const addNew = async (req: Request, res: Response) => {
         
         if(!req.user) return res.status(401).send({ message: 'Unathorized' })
 
+        if(!req.body) return res.status(400).send({ mesage: 'Missing Request body'})
+
 
         req.body.owner = req.user._id
 
         const extractedText = req.body.text
 
         const preview = req.body.preview
+        
+        console.log('owner id:', req.body.owner)
 
         const lines = extractedText
         .split("\n")
@@ -64,6 +68,7 @@ const addNew = async (req: Request, res: Response) => {
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Server Error'
+        console.log(error)
         return res.status(500).send({ errorMessage })
     }
 }
