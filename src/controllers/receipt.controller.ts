@@ -56,6 +56,9 @@ const addNew = async (req: Request, res: Response) => {
         if(company !== 'costco') return res.status(400).send({ message: 'This company is not a partner yet' })
 
         const details = costcoReceiptParser(extractedText, req.body.owner)
+
+        console.log(details)
+
         //needs a better approach for this one later 
         details.date = costcoStringDateFormat(new Date())
         details.preview = preview

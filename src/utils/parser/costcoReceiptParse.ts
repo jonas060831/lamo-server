@@ -253,16 +253,19 @@ const costcoReceiptParser = (rawText: string, ownerId: Schema.Types.ObjectId): P
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   // TAX — "TAX  8.51" (single tax line, not "TOTAL TAX")
+  // Falls back to 0 if not found on the receipt
   const taxMatch = cleanText.match(/^TAX\s+([\d,.]+)/im);
+  const tax: number = taxMatch ? parseMoney(taxMatch[1]) : 0;
 
   // TOTAL — Costco prints "**** TOTAL" or "*** TOTAL"
-  // Also accept "AMOUNT: $452.12" as fallback
+  // Also accepts "AMOUNT: $452.12" as fallback.
+  // Final fallback: derive from parsed subtotal + tax so it is never undefined.
   const totalMatch =
     cleanText.match(/\*+\s*TOTAL[^0-9]*([\d,.]+)/i) ??
     cleanText.match(/AMOUNT:\s*\$?([\d,.]+)/i);
-
-  const tax = taxMatch ? parseMoney(taxMatch[1]) : undefined;
-  const total = totalMatch ? parseMoney(totalMatch[1]) : undefined;
+  const total: number = totalMatch
+    ? parseMoney(totalMatch[1])
+    : parseFloat((subtotal + tax).toFixed(2));
 
   // ── 6. Date ───────────────────────────────────────────────────────────────
   const dateRegex = /\b(\d{2}\/\d{2}\/(?:\d{2}|\d{4})\s+\d{2}:\d{2})\b/g;
