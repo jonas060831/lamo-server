@@ -23,25 +23,11 @@
  * 6. Financial totals: "SUBTOTAL", "TAX", and "*** TOTAL" / "AMOUNT:" lines.
  */
 
-export interface ParsedItem {
-  number: string;
-  name: string;
-  price: number;
-  quantity: number;
-}
+import { ParsedItem, ParsedReceipt } from "../../models/receipt";
+import { Schema } from 'mongoose'
 
-export interface ParsedReceipt {
-  owner: string;
-  company: string;
-  storeNumber?: string;
-  rawText: string;
-  subtotal?: number;
-  tax?: number;
-  total?: number;
-  items: ParsedItem[];
-  date?: string;
-  totalItemsSold?: number;
-}
+
+
 
 // ─── Regex constants ──────────────────────────────────────────────────────────
 
@@ -137,7 +123,7 @@ function extractNameAndPrice(
 
 // ─── Main parser ──────────────────────────────────────────────────────────────
 
-const costcoReceiptParser = (rawText: string, ownerId: string): ParsedReceipt => {
+const costcoReceiptParser = (rawText: string, ownerId: Schema.Types.ObjectId): ParsedReceipt => {
   const cleanText = cleanOcr(rawText);
   const allLines = cleanText
     .split("\n")
@@ -146,14 +132,14 @@ const costcoReceiptParser = (rawText: string, ownerId: string): ParsedReceipt =>
 
   // ── 0. Company name ───────────────────────────────────────────────────────
   // First non-empty line (typically "COSTCO WHOLESALE" or OCR noise of it)
-  const company = allLines[0]?.toLowerCase() ?? "";
+  const company: any = allLines[0]?.toLowerCase() ?? "";
 
   // ── 1. Store number ───────────────────────────────────────────────────────
   // Look for "El Camino #475" or generic "#NNN"
   const storeMatch =
     cleanText.match(/El\s+Camino\s+#(\d+)/i) ??
     cleanText.match(/#(\d+)/);
-  const storeNumber = storeMatch?.[1];
+  const storeNumber = storeMatch?.[1] || "-1";
 
   // ── 2. Find where item lines start ───────────────────────────────────────
   // Skip header: company + store name/address + phone + member line
