@@ -2,8 +2,8 @@ import { Schema, model } from 'mongoose'
 import { COMPANIES, Company } from './store'
 
 
-type PriceHistory = {
-    price: Number
+export type PriceHistory = {
+    price: number
     date: Date;
 }
 

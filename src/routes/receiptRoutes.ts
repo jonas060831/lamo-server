@@ -7,6 +7,7 @@ const router = Router()
 
 router.get('/', verifyToken, controllers.receipt.index)
 router.post('/', verifyToken, controllers.receipt.addNew)
+router.post('/compute-price-drop', verifyToken, controllers.receipt.computePriceDrop)
 
 
 export default router

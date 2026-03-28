@@ -7,12 +7,12 @@
 */
 
 import { Request, Response } from 'express'
-import Receipt, { ParsedReceipt } from '../models/receipt'
+import Receipt, { ParsedItem, ParsedReceipt } from '../models/receipt'
 import costcoReceiptParser from '../utils/parser/costcoReceiptParse'
 import { checkIsPartner, addPartner } from '../services/costcoService'
 import costcoStringDateFormat from '../utils/costcoStringDateFormat'
 import { COMPANIES } from '../models/store'
-import Item from '../models/item'
+import Item, { PriceHistory } from '../models/item'
 
 const index = async (req: Request, res: Response) => {
 
@@ -102,7 +102,7 @@ const addNew = async (req: Request, res: Response) => {
                 //we have this item already
                 const lastPrice = itemDoc.priceHistory[itemDoc.priceHistory.length - 1]
 
-                //if the item from db is not equivalent from this new receipt record
+                //if the matched item from db is not equivalent from this new receipt record price change either up or down
                 if(lastPrice.price !== item.price) {
                     itemDoc.priceHistory.push({ price: item.price, date: new Date() })
                     await itemDoc.save()
@@ -138,7 +138,71 @@ const addNew = async (req: Request, res: Response) => {
     }
 }
 
+
+const computePriceDrop = async (req: Request, res: Response) => {
+  try {
+    const { items, company, storeNumber, receiptDate } = req.body;
+
+    if (!items || !company || !storeNumber || !receiptDate) {
+      return res.status(400).send({ message: 'Missing required fields' });
+    }
+
+    const purchaseDate = new Date(receiptDate);
+    const today = new Date()
+
+    // check receipt is within 30 days
+    const receiptDiffDays = Math.floor(
+      (today.getTime() - purchaseDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    //handled on the front end
+    if (receiptDiffDays > 30) {
+      return res.status(200).send({ totalBack: -1, qualifiedItems: -1 })
+    }
+
+    let totalBack = 0
+    let qualifiedItems = 0
+
+    const itemNumbers = items.map((i: any) => i.number)
+
+    const itemDocs = await Item.find({
+      company,
+      storeNumber,
+      itemNumber: { $in: itemNumbers }
+    });
+
+    for (const item of items) {
+      const itemDoc = itemDocs.find(d => d.itemNumber === item.number)
+      if (!itemDoc || !itemDoc.priceHistory.length) continue
+
+      const lastPrice = itemDoc.priceHistory[itemDoc.priceHistory.length - 1]
+      const lastPriceDate = new Date(lastPrice.date);
+
+      //ensure price update is recent (within 30 days from today)
+      const priceDiffDays = Math.floor(
+        (today.getTime() - lastPriceDate.getTime()) / (1000 * 60 * 60 * 24)
+      )
+
+      //have to use math.abs considering previous date and future dates
+      if (Math.abs(priceDiffDays) > 30) continue;
+
+      // compute refund if price dropped
+      if (lastPrice.price < item.price) {
+        totalBack += (item.price - lastPrice.price) * item.quantity
+        qualifiedItems += 1
+      }
+    }
+
+    return res.status(200).send({ totalBack, qualifiedItems })
+
+  } catch (error) {
+    console.error(error)
+    return res.status(500).send({ message: 'Server error' })
+  }
+}
+
+
 export default {
   index,
-  addNew
+  addNew,
+  computePriceDrop
 }
