@@ -19,7 +19,7 @@ const index = async (req: Request, res: Response) => {
     try {
         const authedUser = req.user
 
-        if(!authedUser) return res.status(401).send({ message: 'Unathorized' })
+        if(!authedUser) return res.status(401).send({ message: 'Unauthorized' })
 
         const receipts = await Receipt.find({ owner: authedUser._id })
 
@@ -35,9 +35,9 @@ const index = async (req: Request, res: Response) => {
 const addNew = async (req: Request, res: Response) => {
     try {
         
-        if(!req.user) return res.status(401).send({ message: 'Unathorized' })
+        if(!req.user) return res.status(401).send({ message: 'Unauthorized' })
 
-        if(!req.body) return res.status(400).send({ mesage: 'Missing Request body'})
+        if(!req.body.text || !req.body.preview) return res.status(400).send({ message: 'Missing Request body'})
 
 
         req.body.owner = req.user._id
@@ -51,6 +51,8 @@ const addNew = async (req: Request, res: Response) => {
         .map((line:string) => line.trim())
         .filter(Boolean);
 
+        if(!lines.length) return res.status(400).send({ message: 'Invalid receipt data' })
+
         const company = lines[0].toLowerCase();
 
         if(company !== 'costco') return res.status(400).send({ message: 'This company is not a partner yet' })
@@ -59,16 +61,14 @@ const addNew = async (req: Request, res: Response) => {
 
         console.log(details)
 
-        //needs a better approach for this one later 
+        //needs a better approach for this one later cannot scan the whole receipt or the items does not get populated/letters && numbers too small
         details.date = costcoStringDateFormat(new Date())
         details.preview = preview
 
-        //TODO: base on details.company && details.storeNumber check if the store is already a partner
-
-        //if its not create the store info from the receipt using the receipt detail
 
         const isStoreAPartner = await checkIsPartner(company, details.storeNumber)
 
+        //if its not create the store info from the receipt using the receipt detail
         if(!isStoreAPartner) {
             //notify dev for a new user that uses the service?
             console.log(`New store detected: ${company} #${details.storeNumber} adding to store db...`)
@@ -76,14 +76,15 @@ const addNew = async (req: Request, res: Response) => {
             await addPartner(company, details.storeNumber)
         }
 
-    
+
         //check if scanner get the items
-        if(details.items.length === 0 || details.items == undefined) return res.status(400).send({ message: 'No Item found in your receipt' })
+        if(!details.items || details.items.length === 0) return res.status(400).send({ message: 'No Item found in your receipt' })
 
         const savedItems = []
 
         //cross check each parsedItem from the receipt from previous Item records
         for(const item of details.items) {
+
             let itemDoc = await Item.findOne({
                 itemNumber: item.number,
                 company,
@@ -100,11 +101,14 @@ const addNew = async (req: Request, res: Response) => {
                 })
             } else {
                 //we have this item already
-                const lastPrice = itemDoc.priceHistory[itemDoc.priceHistory.length - 1]
+                const history = itemDoc.priceHistory
 
-                //if the matched item from db is not equivalent from this new receipt record price change either up or down
-                if(lastPrice.price !== item.price) {
-                    itemDoc.priceHistory.push({ price: item.price, date: new Date() })
+                const lastPrice = history.length > 0 ? history[history.length - 1] : null
+
+                //if the matched item from db is not equivalent from this new receipt
+                //record price change either up or down
+                if(!lastPrice || lastPrice.price !== item.price) {
+                    history.push({ price: item.price, date: new Date() })
                     await itemDoc.save()
                 }
             }
@@ -119,17 +123,10 @@ const addNew = async (req: Request, res: Response) => {
             })
         }
 
-
         details.items = savedItems
 
-        async function saveReceipt() {
-            const receipt = await Receipt.create(details)
-            await receipt.save()
-            return res.send(200).send(receipt)
-        }
-
-        //save the receipt
-        await saveReceipt()
+        const receipt = await Receipt.create(details)
+        return res.status(200).send(receipt)
         
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Server Error'
@@ -182,8 +179,8 @@ const computePriceDrop = async (req: Request, res: Response) => {
         (today.getTime() - lastPriceDate.getTime()) / (1000 * 60 * 60 * 24)
       )
 
-      //reject future dates OR too old
-      if (priceDiffDays < 0 || priceDiffDays > 30) continue;
+      //have to use math.abs considering previous date and future dates
+      if (Math.abs(priceDiffDays) > 30) continue;
 
       // compute refund if price dropped
       if (lastPrice.price < item.price) {
