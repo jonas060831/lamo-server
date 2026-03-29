@@ -182,8 +182,8 @@ const computePriceDrop = async (req: Request, res: Response) => {
         (today.getTime() - lastPriceDate.getTime()) / (1000 * 60 * 60 * 24)
       )
 
-      //have to use math.abs considering previous date and future dates
-      if (Math.abs(priceDiffDays) > 30) continue;
+      //reject future dates OR too old
+      if (priceDiffDays < 0 || priceDiffDays > 30) continue;
 
       // compute refund if price dropped
       if (lastPrice.price < item.price) {
